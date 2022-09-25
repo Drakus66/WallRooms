@@ -43,6 +43,14 @@ namespace WallRooms
         }
     }
 
+    class ElemToFillParam 
+    {
+        public Element elem;
+
+        public string FlatNumber;
+        public string RoomNumber;
+    }
+
 
 
     /// <summary>
@@ -238,15 +246,26 @@ namespace WallRooms
             }
 
 
+            List<ElemToFillParam> elementsToFill = new List<ElemToFillParam>();
+            
+            if (mainDocRooms.Count > 0)
+            {
+                elementsToFill.AddRange(FindRooms(mainDocRooms, workElements));
+            }
 
 
             return result;
         }
 
 
-        public void FindRooms (List<Room> rooms, List<Element> elements, Transform transform = null)
+        List<ElemToFillParam> FindRooms (List<Room> rooms, List<Element> elements, Transform transform = null)
         {
+            List<ElemToFillParam> elems = new List<ElemToFillParam>();
 
+
+
+
+            return elems;
         }
     }
 }
