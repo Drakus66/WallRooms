@@ -21,6 +21,9 @@ namespace WallRooms
                 LongDescription = "",
             };
 
+            RibbonPanel panel = application.CreateRibbonPanel("Стены");
+            panel.AddItem(pushButtonData);
+
             return Result.Succeeded;
         }
 
