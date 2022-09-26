@@ -118,14 +118,6 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
-  <data name="_Button_image" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>Resources\Button_image.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-    <comment>Иконка для кнопки</comment>
-  </data>
-  <data name="_Button_long_description" xml:space="preserve">
-    <value>Более подробное описание команды.</value>
-    <comment>Более подробное описание команды.</comment>
-  </data>
   <data name="_command_message" xml:space="preserve">
     <value>Заглушка для команды '{0}'.</value>
     <comment>Это сообщение, используемое по умолчанию.</comment>
@@ -137,14 +129,6 @@
   <data name="_Button_caption" xml:space="preserve">
     <value>Кнопка</value>
     <comment>Надпись на кнопке.</comment>
-  </data>
-  <data name="_Button_tooltip_text" xml:space="preserve">
-    <value>Всплывающая подсказка для кнопки.</value>
-    <comment>Всплывающая подсказка для кнопки.</comment>
-  </data>
-  <data name="_Button_tooltip_image" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>Resources\Button_tooltip_image.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-    <comment>Изображение, используемое в расширенной версии всплывающей подсказки.</comment>
   </data>
   <data name="_Help_file_name" xml:space="preserve">
     <value></value>

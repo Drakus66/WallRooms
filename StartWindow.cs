@@ -12,24 +12,16 @@ namespace WallRooms
 {
     public partial class StartWindow : Form
     {
+        public bool OkStart = false;
 
-        public bool OkStart;
         public StartWindow()
         {
             InitializeComponent();
-            //кнопка Пуск
-            OkStart = false;
         }
 
-        private void buttonОк_Click(object sender, EventArgs e)
+        private void button1_Click(object sender, EventArgs e)
         {
             OkStart = true;
-            this.Close();
-        }
-
-        private void buttonCancel_Click(object sender, EventArgs e)
-        {
-            OkStart = false;
             this.Close();
         }
     }
