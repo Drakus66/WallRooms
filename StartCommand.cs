@@ -425,15 +425,31 @@ namespace WallRooms
                     }
 
 
-                    if (rFlatNum != null)
+
+                    //Если связанный файл, то транслируем проверочные точки в его координаты
+                    if (transform != null)
                     {
-                        if (String.IsNullOrEmpty(elements[i].FlatNumber)) elements[i].FlatNumber = rFlatNum.AsString();
-                        else elements[i].FlatNumber += "; " + rFlatNum.AsString();
+                        trackPointInt = transform.Inverse.OfPoint(trackPointInt);
+                        trackPointEx = transform.Inverse.OfPoint(trackPointEx);
                     }
-                    if (rRoomNum != null)
+
+                    bool pointInRoom = false;
+                    pointInRoom = room.IsPointInRoom(trackPointInt);
+
+                    if (!pointInRoom && trackPointEx != null) pointInRoom = room.IsPointInRoom(trackPointEx);
+
+                    if (pointInRoom)
                     {
-                        if (String.IsNullOrEmpty(elements[i].RoomNumber)) elements[i].RoomNumber = rRoomNum.AsString();
-                        else elements[i].RoomNumber += "; " + rRoomNum.AsString();
+                        if (rFlatNum != null)
+                        {
+                            if (String.IsNullOrEmpty(elements[i].FlatNumber)) elements[i].FlatNumber = rFlatNum.AsString();
+                            else elements[i].FlatNumber += "; " + rFlatNum.AsString();
+                        }
+                        if (rRoomNum != null)
+                        {
+                            if (String.IsNullOrEmpty(elements[i].RoomNumber)) elements[i].RoomNumber = rRoomNum.AsString();
+                            else elements[i].RoomNumber += "; " + rRoomNum.AsString();
+                        }
                     }
                 }
             }
