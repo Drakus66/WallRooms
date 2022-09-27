@@ -9,10 +9,19 @@ using Autodesk.Revit.UI;
 
 namespace WallRooms
 {
-    public class WallRooms : IExternalApplication
+    public class StartClass : IExternalApplication
     {
         public Result OnStartup(UIControlledApplication application)
         {
+            
+            // define a new failure id for a warning about walls
+            FailureDefinitionId warnId = new FailureDefinitionId(new Guid("D8B622D3-5DA1-44B7-AB76-875DF259BCAF"));
+
+            // register the new warning using FailureDefinition
+            FailureDefinition failDef = FailureDefinition.CreateFailureDefinition(warnId, FailureSeverity.Error, "Обнаружены доблирующиеся элементы");
+
+
+
             string assemblyName = Assembly.GetExecutingAssembly().Location;
 
             PushButtonData pushButtonData = new PushButtonData("WallRooms", "Помещения\nдля стен", assemblyName, "WallRooms.StartCommand")

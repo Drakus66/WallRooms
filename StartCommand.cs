@@ -71,6 +71,7 @@ namespace WallRooms
         Definition adskFlatNumber = null;
         Definition adskRoomNumber = null;
 
+
         Result IExternalCommand.Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             Result result = Result.Succeeded;
@@ -79,7 +80,6 @@ namespace WallRooms
             UIDocument ui_doc = ui_app?.ActiveUIDocument;
             Application app = ui_app?.Application;
             doc = ui_doc?.Document;
-
 
             //Получение связаных файлов в проекте
             FilteredElementCollector linksCollector = new FilteredElementCollector(doc);
@@ -99,7 +99,7 @@ namespace WallRooms
                 if (linkType == null/* || linkType.GetLinkedFileStatus() != LinkedFileStatus.Loaded*/) continue;
 
                 Document linkDoc = linkInstance.GetLinkDocument();
-                if (linkDoc != null )
+                if (linkDoc != null)
                 {
                     docRooms = new FilteredElementCollector(linkDoc);
                     if (docRooms.WherePasses(roomCategoryFilter).ToElementIds().Count > 0)
@@ -120,15 +120,15 @@ namespace WallRooms
             adskFlatNumber = null;
             adskRoomNumber = null;
 
-            foreach ( var group in sharedParamFile.Groups)
+            foreach (var group in sharedParamFile.Groups)
             {
-                foreach(var def in group.Definitions)
+                foreach (var def in group.Definitions)
                 {
                     ExternalDefinition eDef = def as ExternalDefinition;
                     if (eDef.GUID.Equals(new Guid("10fb72de-237e-4b9c-915b-8849b8907695"))) adskFlatNumber = def;
                     if (eDef.GUID.Equals(new Guid("69890ae1-d66e-4fe9-aced-024c27719f53"))) adskRoomNumber = def;
                 }
-            }            
+            }
 
             //Помещения из текущего файла
             List<Room> mainDocRooms = new List<Room>();
@@ -142,7 +142,7 @@ namespace WallRooms
 
 
             List<Element> workElements = new List<Element>();
-            
+
             //Получаем выбранные элементы
             Selection selectedElements = ui_doc.Selection;
             foreach (ElementId elemId in selectedElements.GetElementIds())
@@ -179,7 +179,7 @@ namespace WallRooms
                     return Result.Cancelled;
                 }
             }
-            
+
             ElementCategoryFilter wallsfilter = new ElementCategoryFilter(BuiltInCategory.OST_Walls);
 
             if (startWindow.rbOnView.Checked)
@@ -202,6 +202,85 @@ namespace WallRooms
             {
                 TaskDialog.Show("Ошибка", "Нет подходящих элементов");
                 return Result.Cancelled;
+            }
+
+
+            //Поиск дублирования
+
+            if (startWindow.cbCheckClash.Checked)
+            { 
+                FailureDefinitionId warnId = new FailureDefinitionId(new Guid("D8B622D3-5DA1-44B7-AB76-875DF259BCAF"));
+                FailureMessage failMessage = new FailureMessage(warnId);
+
+                List<ElementId> workElementIds = (from e in workElements select e.Id).ToList();
+
+                List<ElementId[]> DuplicateDetected = new List<ElementId[]>();
+
+
+                List<ElementId> checkedIds = new List<ElementId>();
+                foreach (ElementId eId in workElementIds)
+                {
+                    FilteredElementCollector interferingCollector = new FilteredElementCollector(doc, workElementIds);
+                    List<ElementId> excludedElements = new List<ElementId>();
+                    excludedElements.Add(eId);
+                    excludedElements.AddRange(checkedIds);
+                    ExclusionFilter exclusionFilter = new ExclusionFilter(excludedElements);
+                    interferingCollector.WherePasses(exclusionFilter);
+
+                    Element checkElem = doc.GetElement(eId);
+                    Solid checkSolid = GetElementSolid(checkElem);
+
+                    ElementIntersectsElementFilter intersectionFilter = new ElementIntersectsElementFilter(checkElem);
+                    List<Element> intersectedElements = interferingCollector.WherePasses(intersectionFilter).ToElements().ToList();
+
+                    foreach (Element intElem in intersectedElements)
+                    {
+                        Solid secondSolid = GetElementSolid(intElem);
+                        Solid intersectSolid = null;
+
+                        try
+                        {
+                            intersectSolid = BooleanOperationsUtils.ExecuteBooleanOperation(checkSolid, secondSolid, BooleanOperationsType.Intersect);
+                        }
+                        catch
+                        { }
+
+                        if (intersectSolid == null) continue;
+
+                        //если объем пересечения солидов элементов равен объему одного из элементов, то считаем, что это дублирование
+                        if (Math.Round(intersectSolid.Volume, 3) == Math.Round(secondSolid.Volume, 3) ||
+                            Math.Round(intersectSolid.Volume, 3) == Math.Round(secondSolid.Volume, 3))
+
+                        {
+                            //Если такая пара элементов не найдена, то добавляем
+                            if (DuplicateDetected.FirstOrDefault(pe => pe.Contains(eId) && pe.Contains(intElem.Id)) == null)
+                            {
+                                DuplicateDetected.Add(new ElementId[] { eId, intElem.Id });
+                            }
+                        }
+                    }
+                    checkedIds.Add(eId);
+                }
+
+
+                if (DuplicateDetected.Count > 0)
+                {
+                    List<ElementId> failElems = (from p in DuplicateDetected select p[0]).ToList();
+                    List<ElementId> secFailElems = (from p in DuplicateDetected select p[1]).ToList();
+
+                    failMessage.SetFailingElements(failElems);
+                    failMessage.SetAdditionalElements(secFailElems);
+
+                    using (Transaction TR = new Transaction(doc, "Дублирование"))
+                    {
+                        TR.Start();
+                        doc.PostFailure(failMessage);
+                        TR.Commit();
+                    }
+
+
+                    return Result.Failed;
+                }
             }
 
 
@@ -330,8 +409,10 @@ namespace WallRooms
                 TR.Start();
                 foreach (var Elem in elementsToCheck)
                 {
-                    Elem.elem.get_Parameter(adskFlatNumber).Set(Elem.FlatNumber);
-                    Elem.elem.get_Parameter(adskRoomNumber).Set(Elem.RoomNumber);
+                    Parameter elemFlatNumParam = Elem.elem.get_Parameter(adskFlatNumber);
+                    if (!elemFlatNumParam.IsReadOnly) elemFlatNumParam.Set(Elem.FlatNumber);
+                    Parameter elemRoomNumParam = Elem.elem.get_Parameter(adskRoomNumber);
+                    if (!elemRoomNumParam.IsReadOnly) elemRoomNumParam.Set(Elem.RoomNumber);
                 }
 
                 TR.Commit();
@@ -385,9 +466,14 @@ namespace WallRooms
 
                 //Параметры помещения
                 Parameter rFlatNum = room.get_Parameter(adskFlatNumber);
-                rFlatNum = room.LookupParameter("Номер квартиры");
+
                 Parameter rRoomNum = room.get_Parameter(adskRoomNumber);
-                rRoomNum = room.LookupParameter("Номер");
+
+
+#if DEBUG
+                rFlatNum = room.LookupParameter("Номер квартиры"); //Тест
+                rRoomNum = room.LookupParameter("Номер"); //Тест
+#endif
 
                 foreach (int i in workElementIndxs)
                 {

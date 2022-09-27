@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>WallRooms</Name>
+    <Assembly>WallRooms.dll</Assembly>
+    <AddInId>B67433C7-C010-483F-88CE-A7C65918E793</AddInId>
+    <FullClassName>WallRooms.StartClass</FullClassName>
+    <Text>WallRooms</Text>
+    <VendorId>ID</VendorId>
+    <VendorDescription>IlyaDryagin</VendorDescription>
+  </AddIn>
+</RevitAddIns>
