@@ -312,7 +312,7 @@ namespace WallRooms
                 using ( Transaction TR = new Transaction(doc, "Добавление параметров"))
                 {
                     TR.Start();
-                    
+
                     CategorySet myCategories = new CategorySet(); //создание набора категорий
 
                     if (addToWall)
@@ -338,6 +338,12 @@ namespace WallRooms
                     InstanceBinding insBinding = new InstanceBinding(myCategories);
                     doc.ParameterBindings.Insert(adskFlatNumber, insBinding);
                     doc.ParameterBindings.Insert(adskRoomNumber, insBinding);
+
+                    var ParamDefinition = SharedParameterElement.Lookup(doc, new Guid("10fb72de-237e-4b9c-915b-8849b8907695")).GetDefinition();
+                    ParamDefinition.SetAllowVaryBetweenGroups(doc, true);
+
+                    ParamDefinition = SharedParameterElement.Lookup(doc, new Guid("69890ae1-d66e-4fe9-aced-024c27719f53")).GetDefinition();
+                    ParamDefinition.SetAllowVaryBetweenGroups(doc, true);
 
                     TR.Commit();
                 }
