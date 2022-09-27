@@ -130,6 +130,13 @@ namespace WallRooms
                 }
             }
 
+            if (adskFlatNumber == null|| adskRoomNumber == null)
+            {
+                TaskDialog.Show("Внимание", "Не найдены общие параметры. Возможно не привязан файл общих параметров либо привязан не тот файл. Используйте файл общих параметров ADSK");
+
+                return Result.Failed;
+            }
+
             //Помещения из текущего файла
             List<Room> mainDocRooms = new List<Room>();
             docRooms = new FilteredElementCollector(doc);
