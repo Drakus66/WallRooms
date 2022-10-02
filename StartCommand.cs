@@ -354,6 +354,8 @@ namespace WallRooms
 
                     TR.Commit();
                 }
+
+                doc.Regenerate();
             }
 
 
@@ -431,6 +433,8 @@ namespace WallRooms
                 TR.Commit();
             }
 
+
+            TaskDialog.Show("Готово!", "Обработка закончена");
             return result;
         }
 
@@ -542,12 +546,18 @@ namespace WallRooms
                         if (rFlatNum != null)
                         {
                             if (String.IsNullOrEmpty(elements[i].FlatNumber)) elements[i].FlatNumber = rFlatNum.AsString();
-                            else elements[i].FlatNumber += "; " + rFlatNum.AsString();
+                            else
+                            {
+                                if (!elements[i].FlatNumber.Contains(rFlatNum.AsString() + ";")) elements[i].FlatNumber += "; " + rFlatNum.AsString();
+                            }
                         }
                         if (rRoomNum != null)
                         {
                             if (String.IsNullOrEmpty(elements[i].RoomNumber)) elements[i].RoomNumber = rRoomNum.AsString();
-                            else elements[i].RoomNumber += "; " + rRoomNum.AsString();
+                            else
+                            {
+                                if (!elements[i].RoomNumber.Contains(rRoomNum.AsString() + ";")) elements[i].RoomNumber += "; " + rRoomNum.AsString();
+                            }
                         }
                     }
                 }

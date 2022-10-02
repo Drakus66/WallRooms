@@ -38,7 +38,8 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(365, 83);
+            this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.button1.Location = new System.Drawing.Point(366, 86);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 0;
@@ -48,7 +49,8 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(446, 83);
+            this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.button2.Location = new System.Drawing.Point(447, 86);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
             this.button2.TabIndex = 1;
@@ -102,13 +104,14 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(533, 118);
+            this.ClientSize = new System.Drawing.Size(534, 121);
             this.Controls.Add(this.cbCheckClash);
             this.Controls.Add(this.rbAll);
             this.Controls.Add(this.rbOnView);
             this.Controls.Add(this.rbSelElems);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Name = "StartWindow";
             this.Text = "Запись помещений для стен";
             this.ResumeLayout(false);
