@@ -50,12 +50,13 @@ namespace WallRooms
         public Solid solid;
         public double width;
 
-        public string FlatNumber;
-        public string RoomNumber;
+        public List<string> FlatNumber;
+        public List<string> RoomNumber;
 
         public bool isFloor = false;
         public bool isCeiling = false;
         public bool isWall = false;
+
 
     }
 
@@ -343,8 +344,14 @@ namespace WallRooms
                     }
 
                     InstanceBinding insBinding = new InstanceBinding(myCategories);
-                    doc.ParameterBindings.Insert(adskFlatNumber, insBinding);
-                    doc.ParameterBindings.Insert(adskRoomNumber, insBinding);
+                    bool flatNumInserted = doc.ParameterBindings.Insert(adskFlatNumber, insBinding);
+
+                    if (flatNumInserted) flatNumInserted = doc.ParameterBindings.ReInsert(adskFlatNumber, insBinding);
+
+
+                    bool roomNumInserted = doc.ParameterBindings.Insert(adskRoomNumber, insBinding);
+
+                    if (roomNumInserted) roomNumInserted = doc.ParameterBindings.ReInsert(adskRoomNumber, insBinding);
 
                     var ParamDefinition = SharedParameterElement.Lookup(doc, new Guid("10fb72de-237e-4b9c-915b-8849b8907695")).GetDefinition();
                     ParamDefinition.SetAllowVaryBetweenGroups(doc, true);
@@ -355,7 +362,7 @@ namespace WallRooms
                     TR.Commit();
                 }
 
-                doc.Regenerate();
+                //doc.Regenerate();
             }
 
 
@@ -369,8 +376,8 @@ namespace WallRooms
                 ElemToFillParam e = new ElemToFillParam()
                 {
                     elem = sElem,
-                    RoomNumber = "",
-                    FlatNumber = "",
+                    RoomNumber = new List<string>(),
+                    FlatNumber = new List<string>(),
                     solid = GetElementSolid(sElem),
                 };
                 if (sElem is Wall)
@@ -425,9 +432,33 @@ namespace WallRooms
                 foreach (var Elem in elementsToCheck)
                 {
                     Parameter elemFlatNumParam = Elem.elem.get_Parameter(adskFlatNumber);
-                    if (!elemFlatNumParam.IsReadOnly) elemFlatNumParam.Set(Elem.FlatNumber);
+                    if (!elemFlatNumParam.IsReadOnly && Elem.FlatNumber.Count > 0)
+                    {
+                        string value = Elem.FlatNumber[0];
+                        if (Elem.FlatNumber.Count > 1)
+                        {
+                            for (int sInd = 1; sInd < Elem.FlatNumber.Count; sInd++)
+                            {
+                                value += "; " + Elem.FlatNumber[sInd];
+                            }
+                        }
+
+                        elemFlatNumParam.Set(value);
+                    }
                     Parameter elemRoomNumParam = Elem.elem.get_Parameter(adskRoomNumber);
-                    if (!elemRoomNumParam.IsReadOnly) elemRoomNumParam.Set(Elem.RoomNumber);
+                    if (!elemRoomNumParam.IsReadOnly && Elem.RoomNumber.Count > 0)
+                    {
+                        string value = Elem.RoomNumber[0];
+                        if (Elem.RoomNumber.Count > 1)
+                        {
+                            for (int sInd = 1; sInd < Elem.RoomNumber.Count; sInd++)
+                            {
+                                value += "; " + Elem.RoomNumber[sInd];
+                            }
+                        }
+
+                        elemRoomNumParam.Set(value);
+                    }
                 }
 
                 TR.Commit();
@@ -488,8 +519,8 @@ namespace WallRooms
 
 
 #if DEBUG
-                rFlatNum = room.LookupParameter("Номер квартиры"); //Тест
-                rRoomNum = room.LookupParameter("Номер"); //Тест
+                //rFlatNum = room.LookupParameter("Номер квартиры"); //Тест
+                //rRoomNum = room.LookupParameter("Номер"); //Тест
 #endif
 
                 foreach (int i in workElementIndxs)
@@ -500,21 +531,58 @@ namespace WallRooms
                     XYZ trackPointInt = null;
                     XYZ solidCenter = checkElem.solid.ComputeCentroid();
 
+                    List<XYZ> stepPointsIn = new List<XYZ>();
+                    List<XYZ> stepPointsOut = new List<XYZ>();
+
+
                     if (checkElem.isWall)
                     {
+                        //получим массив точек вдоль стены
                         Location wallLoc = (checkElem.elem as Wall).Location;
-                        if (wallLoc != null && wallLoc is LocationCurve locCurve)
+                        Curve locCurve = (wallLoc as LocationCurve).Curve;
+
+
+
+                        double locLenght = locCurve.ApproximateLength;
+                        double lStep = UnitUtils.ConvertToInternalUnits(500, DisplayUnitType.DUT_MILLIMETERS);
+                        double pointOfsetFromFace = UnitUtils.ConvertToInternalUnits(10, DisplayUnitType.DUT_MILLIMETERS);
+                        int stepNum = (int)Math.Floor(locLenght / lStep);
+                        if (locLenght < lStep * 2)
                         {
-                            Curve wallCurve = locCurve.Curve;
-                            if (wallCurve is Arc)
+                            Transform curveDeriative = locCurve.ComputeDerivatives(0.5, true);
+                            XYZ curveNorm = curveDeriative.BasisX.CrossProduct(XYZ.BasisZ).Normalize();
+                            XYZ pp = curveDeriative.Origin;
+                            pp = new XYZ(pp.X, pp.Y, solidCenter.Z);
+
+                            stepPointsIn.Add(pp.Add(curveNorm.Multiply(pointOfsetFromFace + checkElem.width / 2)));
+                            stepPointsOut.Add(pp.Add(curveNorm.Negate().Multiply(pointOfsetFromFace + checkElem.width / 2)));
+                        }
+                        else
+                        {
+                            for(int sInd = 1; sInd <= stepNum; sInd++)
                             {
-                                XYZ arcCenter = wallCurve.ComputeDerivatives(0.5, true).Origin;
-                                solidCenter = new XYZ(arcCenter.X, arcCenter.Y, solidCenter.Z);
+                                Transform curveDeriative = locCurve.ComputeDerivatives(lStep * sInd, false);
+                                XYZ curveNorm = curveDeriative.BasisX.CrossProduct(XYZ.BasisZ).Normalize();
+                                XYZ pp = curveDeriative.Origin;
+                                pp = new XYZ(pp.X, pp.Y, solidCenter.Z);
+
+                                stepPointsIn.Add(pp.Add(curveNorm.Multiply(pointOfsetFromFace)));
+                                stepPointsOut.Add(pp.Add(curveNorm.Negate().Multiply(pointOfsetFromFace)));
                             }
                         }
 
-                        trackPointEx = solidCenter.Add((checkElem.elem as Wall).Orientation.Multiply(checkElem.width * 2));
-                        trackPointInt = solidCenter.Add((checkElem.elem as Wall).Orientation.Multiply(checkElem.width * 2).Negate());
+                        //if (wallLoc != null && wallLoc is LocationCurve locCurve)
+                        //{
+                        //    Curve wallCurve = locCurve.Curve;
+                        //    if (wallCurve is Arc)
+                        //    {
+                        //        XYZ arcCenter = wallCurve.ComputeDerivatives(0.5, true).Origin;
+                        //        solidCenter = new XYZ(arcCenter.X, arcCenter.Y, solidCenter.Z);
+                        //    }
+                        //}
+
+                        //trackPointEx = solidCenter.Add((checkElem.elem as Wall).Orientation.Multiply(checkElem.width * 2));
+                        //trackPointInt = solidCenter.Add((checkElem.elem as Wall).Orientation.Multiply(checkElem.width * 2).Negate());
                     }
 
                     if (checkElem.isFloor)
@@ -534,29 +602,57 @@ namespace WallRooms
                     {
                         trackPointInt = transform.Inverse.OfPoint(trackPointInt);
                         trackPointEx = transform.Inverse.OfPoint(trackPointEx);
+
+                        for (int sInd = 0; sInd < stepPointsIn.Count; sInd++)
+                        {
+                            stepPointsIn[sInd] = transform.Inverse.OfPoint(stepPointsIn[sInd]);
+                            stepPointsOut[sInd] = transform.Inverse.OfPoint(stepPointsOut[sInd]);
+                        }
                     }
 
-                    bool pointInRoom = false;
-                    pointInRoom = room.IsPointInRoom(trackPointInt);
-
-                    if (!pointInRoom && trackPointEx != null) pointInRoom = room.IsPointInRoom(trackPointEx);
-
-                    if (pointInRoom)
+                    if (trackPointInt != null && trackPointEx != null)
                     {
-                        if (rFlatNum != null)
+                        bool pointInRoom = false;
+                        pointInRoom = room.IsPointInRoom(trackPointInt);
+
+                        if (!pointInRoom && trackPointEx != null) pointInRoom = room.IsPointInRoom(trackPointEx);
+
+                        if (pointInRoom)
                         {
-                            if (String.IsNullOrEmpty(elements[i].FlatNumber)) elements[i].FlatNumber = rFlatNum.AsString();
-                            else
+                            if (rFlatNum != null)
                             {
-                                if (!elements[i].FlatNumber.Contains(rFlatNum.AsString() + ";")) elements[i].FlatNumber += "; " + rFlatNum.AsString();
+                                if (!elements[i].FlatNumber.Contains(rFlatNum.AsString()))
+                                    elements[i].FlatNumber.Add(rFlatNum.AsString());
+                            }
+                            if (rRoomNum != null)
+                            {
+                                if (!elements[i].RoomNumber.Contains(rRoomNum.AsString()))
+                                    elements[i].RoomNumber.Add(rRoomNum.AsString());
+                                
                             }
                         }
-                        if (rRoomNum != null)
+                    }
+                    else if (stepPointsIn.Count > 0 && stepPointsOut.Count > 0)
+                    {
+                        for (int sInd = 0; sInd < stepPointsIn.Count; sInd ++)
                         {
-                            if (String.IsNullOrEmpty(elements[i].RoomNumber)) elements[i].RoomNumber = rRoomNum.AsString();
-                            else
+                            bool pointInRoom = false;
+                            pointInRoom = room.IsPointInRoom(stepPointsIn[sInd]);
+
+                            if (!pointInRoom) pointInRoom = room.IsPointInRoom(stepPointsOut[sInd]);
+
+                            if (pointInRoom)
                             {
-                                if (!elements[i].RoomNumber.Contains(rRoomNum.AsString() + ";")) elements[i].RoomNumber += "; " + rRoomNum.AsString();
+                                if (rFlatNum != null)
+                                {
+                                    if (!elements[i].FlatNumber.Contains(rFlatNum.AsString()))
+                                        elements[i].FlatNumber.Add(rFlatNum.AsString());
+                                }
+                                if (rRoomNum != null)
+                                {
+                                    if (!elements[i].RoomNumber.Contains(rRoomNum.AsString()))
+                                        elements[i].RoomNumber.Add(rRoomNum.AsString());
+                                }
                             }
                         }
                     }
