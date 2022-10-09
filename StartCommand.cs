@@ -307,9 +307,9 @@ namespace WallRooms
 
             if (startWindow.rbSelElems.Checked)
             {
-                addToFloor = floorElem.get_Parameter(adskFlatNumber) == null
+                if (floorElem != null) addToFloor = floorElem.get_Parameter(adskFlatNumber) == null
                                 || floorElem.get_Parameter(adskRoomNumber) == null;
-                addToCeiling = ceilingElem.get_Parameter(adskFlatNumber) == null
+                if (ceilingElem != null) addToCeiling = ceilingElem.get_Parameter(adskFlatNumber) == null
                                 || ceilingElem.get_Parameter(adskRoomNumber) == null;
             }
 
@@ -387,7 +387,7 @@ namespace WallRooms
                 }
                 if (sElem is Floor)
                 {
-                    e.isWall = true;
+                    e.isFloor = true;
                     Parameter thickParam = sElem.get_Parameter(BuiltInParameter.FLOOR_ATTR_THICKNESS_PARAM);
                     if (thickParam != null) e.width = thickParam.AsDouble();
                 }
@@ -410,7 +410,8 @@ namespace WallRooms
             //поиск по помещениям из текущего файла
             if (mainDocRooms.Count > 0)
             {
-                elementsToCheck = FindRooms(mainDocRooms, elementsToCheck);
+                //elementsToCheck = FindRooms(mainDocRooms, elementsToCheck);
+                elementsToCheck = FindRoomsBySolid(mainDocRooms, elementsToCheck);
             }
 
 
@@ -419,7 +420,8 @@ namespace WallRooms
             {
                 foreach(var lDoc in linkDocs)
                 {
-                    elementsToCheck = FindRooms(lDoc.docRooms, elementsToCheck, lDoc.transform);
+                    //elementsToCheck = FindRooms(lDoc.docRooms, elementsToCheck, lDoc.transform);
+                    elementsToCheck = FindRoomsBySolid(lDoc.docRooms, elementsToCheck, lDoc.transform);
                 }
             }
 
@@ -468,6 +470,100 @@ namespace WallRooms
             TaskDialog.Show("Готово!", "Обработка закончена");
             return result;
         }
+
+
+
+        List<ElemToFillParam> FindRoomsBySolid(List<Room> rooms, List<ElemToFillParam> elements, Transform transform = null)
+        {
+            //Список ИД элементов для фильтрации
+            List<ElementId> workRoomsIds = (from e in rooms select e.Id).ToList();
+            double moveSize = UnitUtils.ConvertToInternalUnits(10, DisplayUnitType.DUT_MILLIMETERS);
+
+            foreach (ElemToFillParam elem in elements)
+            {
+                //получаем BoundingBox помещения, расширяем его и делаем фильтр
+                BoundingBoxXYZ elemBB = elem.elem.get_BoundingBox(null);
+                XYZ MaxPoint = elemBB.Max;
+                XYZ MinPoint = elemBB.Min;
+
+                MaxPoint = MaxPoint.Add(XYZ.BasisX).Add(XYZ.BasisY);
+                MinPoint = MinPoint.Subtract(XYZ.BasisX).Subtract(XYZ.BasisY);
+
+                //Если помещение из связи, то преобразуем координаты в систему координат связанного файла
+                if (transform != null)
+                {
+                    MaxPoint = transform.Inverse.OfPoint(MaxPoint);
+                    MinPoint = transform.Inverse.OfPoint(MinPoint);
+
+                    //Пересчет минимумов и максимумов после трансформации
+                    MinPoint = new XYZ(Math.Min(MaxPoint.X, MinPoint.X), Math.Min(MaxPoint.Y, MinPoint.Y), Math.Min(MaxPoint.Z, MinPoint.Z));
+                    MaxPoint = new XYZ(Math.Max(MaxPoint.X, MinPoint.X), Math.Max(MaxPoint.Y, MinPoint.Y), Math.Max(MaxPoint.Z, MinPoint.Z));
+                }
+
+                BoundingBoxIntersectsFilter bbFilter = new BoundingBoxIntersectsFilter(new Outline(MinPoint, MaxPoint));
+                FilteredElementCollector roomNearCollector = new FilteredElementCollector(rooms.First().Document, workRoomsIds);
+
+                List<ElementId> selectedRooms = roomNearCollector.WherePasses(bbFilter).ToElementIds().ToList();
+
+                if (selectedRooms.Count == 0) continue;
+
+
+                Solid trackSolidInt = null;
+                Solid trackSolidOut = null;
+
+                if (elem.isWall)
+                {
+                    Transform inTranslate = Transform.CreateTranslation((elem.elem as Wall).Orientation.Negate().Multiply(moveSize));
+                        
+                    Transform outTranslate = Transform.CreateTranslation((elem.elem as Wall).Orientation.Multiply(moveSize));
+
+                    trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
+                    trackSolidOut = SolidUtils.CreateTransformed(elem.solid, outTranslate);
+                }
+
+                //Если связанный файл, то транслируем проверочные точки в его координаты
+                if (transform != null)
+                {
+                    trackSolidInt = SolidUtils.CreateTransformed(trackSolidInt, transform.Inverse);
+                    trackSolidOut = SolidUtils.CreateTransformed(trackSolidOut, transform.Inverse);
+                }
+
+                ElementIntersectsSolidFilter intSolidFilter = new ElementIntersectsSolidFilter(trackSolidInt);
+                ElementIntersectsSolidFilter outSolidFilter = new ElementIntersectsSolidFilter(trackSolidOut);
+
+
+                bool pointInRoom = false;
+                FilteredElementCollector roomCollector = new FilteredElementCollector(rooms.First().Document, selectedRooms);
+
+                List<Element> nearRooms = roomCollector.WherePasses(intSolidFilter).ToElements().ToList();
+
+                roomCollector = new FilteredElementCollector(rooms.First().Document, selectedRooms);
+                nearRooms.AddRange(roomCollector.WherePasses(outSolidFilter).ToElements().ToList());
+
+
+                foreach (Element rElem in nearRooms)
+                {
+                    //Параметры помещения
+                    Parameter rFlatNum = rElem.get_Parameter(adskFlatNumber);
+                    Parameter rRoomNum = rElem.get_Parameter(adskRoomNumber);
+
+                    if (rFlatNum != null)
+                    {
+                        if (!elem.FlatNumber.Contains(rFlatNum.AsString()))
+                            elem.FlatNumber.Add(rFlatNum.AsString());
+                    }
+                    if (rRoomNum != null)
+                    {
+                        if (!elem.RoomNumber.Contains(rRoomNum.AsString()))
+                            elem.RoomNumber.Add(rRoomNum.AsString());
+                    }
+
+                }
+            }
+            return elements;
+        }
+
+
 
 
         List<ElemToFillParam> FindRooms (List<Room> rooms, List<ElemToFillParam> elements, Transform transform = null)
