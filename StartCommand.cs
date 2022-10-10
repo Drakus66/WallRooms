@@ -521,44 +521,91 @@ namespace WallRooms
                     trackSolidOut = SolidUtils.CreateTransformed(elem.solid, outTranslate);
                 }
 
+                if (elem.isFloor)
+                {
+                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Multiply(moveSize));
+                    trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
+                }
+
+                if (elem.isCeiling)
+                {
+                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Negate().Multiply(moveSize));
+                    trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
+                }
+
                 //Если связанный файл, то транслируем проверочные точки в его координаты
                 if (transform != null)
                 {
-                    trackSolidInt = SolidUtils.CreateTransformed(trackSolidInt, transform.Inverse);
-                    trackSolidOut = SolidUtils.CreateTransformed(trackSolidOut, transform.Inverse);
+                    if (trackSolidInt != null) trackSolidInt = SolidUtils.CreateTransformed(trackSolidInt, transform.Inverse);
+                    if (trackSolidOut != null) trackSolidOut = SolidUtils.CreateTransformed(trackSolidOut, transform.Inverse);
                 }
 
-                ElementIntersectsSolidFilter intSolidFilter = new ElementIntersectsSolidFilter(trackSolidInt);
-                ElementIntersectsSolidFilter outSolidFilter = new ElementIntersectsSolidFilter(trackSolidOut);
 
-
-                bool pointInRoom = false;
-                FilteredElementCollector roomCollector = new FilteredElementCollector(rooms.First().Document, selectedRooms);
-
-                List<Element> nearRooms = roomCollector.WherePasses(intSolidFilter).ToElements().ToList();
-
-                roomCollector = new FilteredElementCollector(rooms.First().Document, selectedRooms);
-                nearRooms.AddRange(roomCollector.WherePasses(outSolidFilter).ToElements().ToList());
-
-
-                foreach (Element rElem in nearRooms)
+                foreach (ElementId rId in selectedRooms)
                 {
-                    //Параметры помещения
-                    Parameter rFlatNum = rElem.get_Parameter(adskFlatNumber);
-                    Parameter rRoomNum = rElem.get_Parameter(adskRoomNumber);
+                    Element rElem = rooms.First().Document.GetElement(rId);
 
-                    if (rFlatNum != null)
+                    Solid roomSolid = GetElementSolid(rElem);
+
+                    Solid intersectSolid = null;
+
+                    if (trackSolidInt != null) intersectSolid = BooleanOperationsUtils.ExecuteBooleanOperation(trackSolidInt, roomSolid, BooleanOperationsType.Intersect);
+
+                    bool findRoom = false;
+
+                    if (intersectSolid != null && intersectSolid.Volume > 0) findRoom = true;
+
+                    if (!findRoom && trackSolidOut != null)
                     {
-                        if (!elem.FlatNumber.Contains(rFlatNum.AsString()))
-                            elem.FlatNumber.Add(rFlatNum.AsString());
+                        intersectSolid = BooleanOperationsUtils.ExecuteBooleanOperation(trackSolidOut, roomSolid, BooleanOperationsType.Intersect);
+                        if (intersectSolid != null && intersectSolid.Volume > 0) findRoom = true;
                     }
-                    if (rRoomNum != null)
+
+                    if (findRoom)
                     {
-                        if (!elem.RoomNumber.Contains(rRoomNum.AsString()))
-                            elem.RoomNumber.Add(rRoomNum.AsString());
+                        //Параметры помещения
+                        Parameter rFlatNum = rElem.get_Parameter(adskFlatNumber);
+                        Parameter rRoomNum = rElem.get_Parameter(adskRoomNumber);
+
+                        if (rFlatNum != null)
+                        {
+                            if (!elem.FlatNumber.Contains(rFlatNum.AsString()))
+                                elem.FlatNumber.Add(rFlatNum.AsString());
+                        }
+                        if (rRoomNum != null)
+                        {
+                            if (!elem.RoomNumber.Contains(rRoomNum.AsString()))
+                                elem.RoomNumber.Add(rRoomNum.AsString());
+                        }
                     }
 
                 }
+                
+                
+                //List<Element> nearRooms = roomCollector.WherePasses(intSolidFilter).ToElements().ToList();
+
+                //roomCollector = new FilteredElementCollector(rooms.First().Document, selectedRooms);
+                //nearRooms.AddRange(roomCollector.WherePasses(outSolidFilter).ToElements().ToList());
+
+
+                //foreach (Element rElem in nearRooms)
+                //{
+                //    //Параметры помещения
+                //    Parameter rFlatNum = rElem.get_Parameter(adskFlatNumber);
+                //    Parameter rRoomNum = rElem.get_Parameter(adskRoomNumber);
+
+                //    if (rFlatNum != null)
+                //    {
+                //        if (!elem.FlatNumber.Contains(rFlatNum.AsString()))
+                //            elem.FlatNumber.Add(rFlatNum.AsString());
+                //    }
+                //    if (rRoomNum != null)
+                //    {
+                //        if (!elem.RoomNumber.Contains(rRoomNum.AsString()))
+                //            elem.RoomNumber.Add(rRoomNum.AsString());
+                //    }
+
+                //}
             }
             return elements;
         }
