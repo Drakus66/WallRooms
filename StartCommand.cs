@@ -302,7 +302,7 @@ namespace WallRooms
             Element floorElem = workElements.FirstOrDefault(e => e is Floor && !(e is FamilyInstance));
             Element ceilingElem = workElements.FirstOrDefault(e => e is Ceiling && !(e is FamilyInstance));
 
-            addToWall = wallElem.get_Parameter(adskFlatNumber) == null 
+            if (wallElem != null) addToWall = wallElem.get_Parameter(adskFlatNumber) == null 
                             || wallElem.get_Parameter(adskRoomNumber) == null;
 
             if (startWindow.rbSelElems.Checked)
@@ -406,7 +406,8 @@ namespace WallRooms
             }
 
 
-            
+
+            //Для тестовых построений обернуть в транзакцию    
             //поиск по помещениям из текущего файла
             if (mainDocRooms.Count > 0)
             {
@@ -418,12 +419,13 @@ namespace WallRooms
             //Поиск по помещениям из связанных файлов
             if (linkDocs.Count > 0)
             {
-                foreach(var lDoc in linkDocs)
+                foreach (var lDoc in linkDocs)
                 {
                     //elementsToCheck = FindRooms(lDoc.docRooms, elementsToCheck, lDoc.transform);
                     elementsToCheck = FindRoomsBySolid(lDoc.docRooms, elementsToCheck, lDoc.transform);
                 }
             }
+
 
 
 
@@ -477,7 +479,7 @@ namespace WallRooms
         {
             //Список ИД элементов для фильтрации
             List<ElementId> workRoomsIds = (from e in rooms select e.Id).ToList();
-            double moveSize = UnitUtils.ConvertToInternalUnits(10, DisplayUnitType.DUT_MILLIMETERS);
+            double moveSize = UnitUtils.ConvertToInternalUnits(20, DisplayUnitType.DUT_MILLIMETERS);
 
             foreach (ElemToFillParam elem in elements)
             {
@@ -488,6 +490,9 @@ namespace WallRooms
 
                 MaxPoint = MaxPoint.Add(XYZ.BasisX).Add(XYZ.BasisY);
                 MinPoint = MinPoint.Subtract(XYZ.BasisX).Subtract(XYZ.BasisY);
+
+                if (elem.isFloor) MaxPoint = MaxPoint.Add(XYZ.BasisZ.Multiply(0.5));
+                if (elem.isCeiling) MinPoint = MinPoint.Subtract(XYZ.BasisZ.Multiply(0.5));
 
                 //Если помещение из связи, то преобразуем координаты в систему координат связанного файла
                 if (transform != null)
@@ -509,10 +514,12 @@ namespace WallRooms
 
 
                 Solid trackSolidInt = null;
-                Solid trackSolidOut = null;
+                Solid trackSolidOut = null; 
 
                 if (elem.isWall)
                 {
+                    if ((elem.elem as Wall).WallType.Kind == WallKind.Curtain) moveSize = moveSize * 25;
+
                     Transform inTranslate = Transform.CreateTranslation((elem.elem as Wall).Orientation.Negate().Multiply(moveSize));
                         
                     Transform outTranslate = Transform.CreateTranslation((elem.elem as Wall).Orientation.Multiply(moveSize));
@@ -523,15 +530,30 @@ namespace WallRooms
 
                 if (elem.isFloor)
                 {
-                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Multiply(moveSize));
+                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Multiply(moveSize * 15));
                     trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
                 }
 
                 if (elem.isCeiling)
                 {
-                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Negate().Multiply(moveSize));
+                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Negate().Multiply(moveSize * 15));
                     trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
                 }
+
+                
+                //Тестовые построения
+                //if (trackSolidInt != null)
+                //{
+                //    DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                //    ds.SetShape(new GeometryObject[] { trackSolidInt });
+                //}
+
+                //if (trackSolidOut != null)
+                //{
+                //    DirectShape ds = DirectShape.CreateElement(doc, new ElementId(BuiltInCategory.OST_GenericModel));
+                //    ds.SetShape(new GeometryObject[] { trackSolidOut });
+                //}
+
 
                 //Если связанный файл, то транслируем проверочные точки в его координаты
                 if (transform != null)
@@ -544,6 +566,8 @@ namespace WallRooms
                 foreach (ElementId rId in selectedRooms)
                 {
                     Element rElem = rooms.First().Document.GetElement(rId);
+
+                    int IntId = rId.IntegerValue;
 
                     Solid roomSolid = GetElementSolid(rElem);
 
