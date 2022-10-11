@@ -407,26 +407,31 @@ namespace WallRooms
 
 
 
-            //Для тестовых построений обернуть в транзакцию    
-            //поиск по помещениям из текущего файла
-            if (mainDocRooms.Count > 0)
-            {
-                //elementsToCheck = FindRooms(mainDocRooms, elementsToCheck);
-                elementsToCheck = FindRoomsBySolid(mainDocRooms, elementsToCheck);
-            }
-
-
-            //Поиск по помещениям из связанных файлов
-            if (linkDocs.Count > 0)
-            {
-                foreach (var lDoc in linkDocs)
+            //Для тестовых построений обернуть в транзакцию
+            //using (Transaction TR = new Transaction(doc, "TestForm"))
+            //{
+            //     TR.Start();
+                //поиск по помещениям из текущего файла
+                if (mainDocRooms.Count > 0)
                 {
-                    //elementsToCheck = FindRooms(lDoc.docRooms, elementsToCheck, lDoc.transform);
-                    elementsToCheck = FindRoomsBySolid(lDoc.docRooms, elementsToCheck, lDoc.transform);
+                    //elementsToCheck = FindRooms(mainDocRooms, elementsToCheck);
+                    elementsToCheck = FindRoomsBySolid(mainDocRooms, elementsToCheck);
                 }
-            }
 
 
+                //Поиск по помещениям из связанных файлов
+                if (linkDocs.Count > 0)
+                {
+                    foreach (var lDoc in linkDocs)
+                    {
+                        //elementsToCheck = FindRooms(lDoc.docRooms, elementsToCheck, lDoc.transform);
+                        elementsToCheck = FindRoomsBySolid(lDoc.docRooms, elementsToCheck, lDoc.transform);
+                    }
+                }
+
+
+            //    TR.Commit();
+            //}
 
 
             //Запись значений
@@ -479,7 +484,7 @@ namespace WallRooms
         {
             //Список ИД элементов для фильтрации
             List<ElementId> workRoomsIds = (from e in rooms select e.Id).ToList();
-            double moveSize = UnitUtils.ConvertToInternalUnits(20, DisplayUnitType.DUT_MILLIMETERS);
+            double moveSize = UnitUtils.ConvertToInternalUnits(50, DisplayUnitType.DUT_MILLIMETERS);
 
             foreach (ElemToFillParam elem in elements)
             {
@@ -518,7 +523,7 @@ namespace WallRooms
 
                 if (elem.isWall)
                 {
-                    if ((elem.elem as Wall).WallType.Kind == WallKind.Curtain) moveSize = moveSize * 25;
+                    if ((elem.elem as Wall).WallType.Kind == WallKind.Curtain) moveSize = moveSize * 10;
 
                     Transform inTranslate = Transform.CreateTranslation((elem.elem as Wall).Orientation.Negate().Multiply(moveSize));
                         
@@ -530,17 +535,17 @@ namespace WallRooms
 
                 if (elem.isFloor)
                 {
-                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Multiply(moveSize * 15));
+                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Multiply(moveSize * 10));
                     trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
                 }
 
                 if (elem.isCeiling)
                 {
-                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Negate().Multiply(moveSize * 15));
+                    Transform inTranslate = Transform.CreateTranslation(XYZ.BasisZ.Negate().Multiply(moveSize * 10));
                     trackSolidInt = SolidUtils.CreateTransformed(elem.solid, inTranslate);
                 }
 
-                
+
                 //Тестовые построения
                 //if (trackSolidInt != null)
                 //{
